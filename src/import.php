@@ -68,7 +68,23 @@ function import($name, $alias = null, $origin = false) {
     }
     $include_list[$import_key] = 1;
     $pwd = dirname(debug_backtrace(0 | DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]['file']);
-    $p = explode('\\', $name);
+    $pwd_slice = explode(DIRECTORY_SEPARATOR, $pwd);
+
+    $name_slice = explode('\\', $name);
+    
+    $sep = DIRECTORY_SEPARATOR;
+
+    $search_path = empty($pwd_slice[0]) ? '/' : '';
+    foreach ($pwd_slice as $block) {
+        foreach ($name_slice as $piece) {
+            if ($block === $piece) {
+                break 2;
+            } else {
+                $search_path .= $sep . $block;
+            }
+        }
+    }
+
     if ($extension === '') {
         if (substr(PHP_OS, 0, 3) == 'WIN') {
             $extension = '.dll';
@@ -76,9 +92,8 @@ function import($name, $alias = null, $origin = false) {
             $extension = '.so';
         }
     }
-    $sep = DIRECTORY_SEPARATOR;
     $isdir = 0;
-    foreach ($p as $file) {
+    foreach ($name_slice as $file) {
         if (empty($file)) {
             continue;
         }
@@ -86,7 +101,7 @@ function import($name, $alias = null, $origin = false) {
         if ($isdir) {
             $zone = "{$zone}{$sep}{$file}";
         } else {
-            $zone = "{$pwd}{$sep}{$file}";
+            $zone = "{$search_path}{$sep}{$file}";
         }
 
         $include_php = "{$zone}.php";
@@ -118,14 +133,10 @@ function import($name, $alias = null, $origin = false) {
                 $ext = pathinfo($path, PATHINFO_EXTENSION);
                 if ($ext == 'php') {
                     include $path;
-                    if (__invoke__($name, $alias, $origin)) {
-                        return true;
-                    }
+                    __invoke__($name, $alias, $origin);
                 } else if ($ext == $extension) {
                     if (dl($path)) {
-                        if (__invoke__($name, $alias, $origin)) {
-                            return true;
-                        }
+                        __invoke__($name, $alias, $origin);
                     } else {
                         throw new RuntimeException("Can not dl $path");
                     }

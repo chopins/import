@@ -1,7 +1,7 @@
 {
     "name" : "toknot/import",
-    "description": "import class or function",
-    "keywords" : ["import","auto_load"],
+    "description": "import class,function,module,constant,extension to variable token",
+    "keywords" : ["import","autoload"],
     "homepage" : "http://toknot.com",
     "license": "New BSD License",
     "authors": [
