@@ -13,12 +13,12 @@
  * 
  * //call1.php
  * <?php
- * import('classA');
+ * eval(import('classA'));
  * $a = new $classA;
  * 
  * //call2.php
  * <?php
- * import('classA',A);
+ * eval(import('classA',A));
  * $a = new $A;
  * 
  * // /home/path/MyNamespace/MySubNamespace/ClassB.php
@@ -29,17 +29,17 @@
  * 
  * //call3.php
  * <?php
- * import('MyNamespace\MySubNamespac\ClassB');
+ * eval(import('MyNamespace\MySubNamespac\ClassB'));
  * $b = new $ClassB;
  * 
  * //call4.php
  * <?php
- * import('MyNamespace\MySubNamespac\ClassB','B');
+ * eval(import('MyNamespace\MySubNamespac\ClassB','B'));
  * $b = new $B;
  * 
  * //call5.php
  * <?php
- * import('MyNamespace\MySubNamespac\ClassB',null,true);
+ * eval(import('MyNamespace\MySubNamespac\ClassB',null,true));
  * $b = new MyNamespace\MySubNamespac\ClassB;
  * 
  * // /home/path/MyNamespace/MySubNamespace/funciton.php
@@ -49,7 +49,7 @@
  * 
  * //call6.php
  * <?php
- * import('MyNamespace\MySubNamespace\funciton\funcA');
+ * eval(import('MyNamespace\MySubNamespace\funciton\funcA'));
  * $funcA();
  * </code>
  * 
@@ -75,16 +75,18 @@ function import($name, $alias = null, $origin = false) {
     $sep = DIRECTORY_SEPARATOR;
 
     $search_path = empty($pwd_slice[0]) ? '/' : '';
+
     foreach ($pwd_slice as $block) {
+        if(empty($block)) {
+            continue;
+        }
         foreach ($name_slice as $piece) {
             if ($block === $piece) {
                 break 2;
-            } else {
-                $search_path .= $sep . $block;
             }
         }
+        $search_path .=  $block .$sep;
     }
-
     if ($extension === '') {
         if (substr(PHP_OS, 0, 3) == 'WIN') {
             $extension = '.dll';
@@ -99,16 +101,16 @@ function import($name, $alias = null, $origin = false) {
         }
 
         if ($isdir) {
-            $zone = "{$zone}{$sep}{$file}";
+            $zone = "{$zone}{$file}";
         } else {
-            $zone = "{$search_path}{$sep}{$file}";
+            $zone = "{$search_path}{$file}";
         }
 
         $include_php = "{$zone}.php";
         if (file_exists($include_php)) {
-            include $include_php;
+            include_once $include_php;
             if (__invoke__($name, $alias, $origin)) {
-                return true;
+                return "extract(array('$alias'=>'$name'));";
             }
         }
 
@@ -117,7 +119,7 @@ function import($name, $alias = null, $origin = false) {
         if (file_exists($extension_file)) {
             if (dl($extension_file)) {
                 if (__invoke__($name, $alias, $origin)) {
-                    return true;
+                    return "extract(array('$alias'=>'$name'));";
                 }
             } else {
                 throw new RuntimeException("Can not dl $extension_file");
@@ -125,35 +127,40 @@ function import($name, $alias = null, $origin = false) {
         }
 
         if (is_dir($zone)) {
+            $zone .= $sep;
             $isdir = 1;
             continue;
         }
         if (substr($file, -1) == '*') {
+            $_extract_list = array();
             foreach (glob($zone, GLOB_ONLYDIR | GLOB_ERR | GLOB_NOSORT) as $path) {
                 $ext = pathinfo($path, PATHINFO_EXTENSION);
                 if ($ext == 'php') {
-                    include $path;
+                    include_once $path;
                     __invoke__($name, $alias, $origin);
+                    $_extract_list[$alias] = $name;
                 } else if ($ext == $extension) {
                     if (dl($path)) {
                         __invoke__($name, $alias, $origin);
+                        $_extract_list[$alias] = $name;
                     } else {
                         throw new RuntimeException("Can not dl $path");
                     }
                 }
             }
+            return "extract($_extract_list);";
         }
     }
     $path = str_replace('\\', DIRECTORY_SEPARATOR, $name);
-    include "{$name}.php";
+    include_once "{$name}.php";
     if (__invoke__($name, $alias, $origin)) {
-        return true;
+        return "extract(array('$alias'=>'$name'));";
     } else {
         throw new RuntimeException("Can not import $name");
     }
 }
 
-function __invoke__($name, $alias, $origin = false) {
+function __invoke__($name, &$alias, $origin = false) {
     if (empty($alias) && $origin === false) {
         $partlist = explode('\\', $name);
         $alias = end($partlist);
@@ -165,15 +172,13 @@ function __invoke__($name, $alias, $origin = false) {
         }
     } else if (function_exists($name)) {
         if (!empty($alias)) {
-            $GLOBALS[$alias] = function () use ($name) {
-                $param_arr = func_get_args();
-                call_user_func_array($name, $param_arr);
-            };
+            $GLOBALS[$alias] = $name;
             return true;
         }
     } else if (defined($name)) {
+        
         if (!empty($alias)) {
-            $GLOBALS[$alias] = constant($name);
+            define($alias, constant($name));
             return true;
         }
     }

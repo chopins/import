@@ -1,12 +1,10 @@
 <?php
 date_default_timezone_set('UTC');
+include 'src/import.php';
+//导入类
+import('example\testAClass');
+//导入常量
+$a = new $testAClass;
 
-class a {
-    
-}
-
-class b {
-    
-}
-class_alias('a', 'CSSS');
-class_alias('b', 'CSSS');
+import('example\testAClass\CONST_VAR');
+echo CONST_VAR;
