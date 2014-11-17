@@ -27,7 +27,27 @@ $a = new $ClassA; //new Namespace\ClassA;
 import('Namespace\ClassA');
 $a = new $ClassA; //new Namespace\ClassA;
 ```
-但是在`/home/calltest.php`中将无法导入上面的类,除非`/home/path/`加入了`include_path`中  
+但是在`/home/calltest.php`中将无法导入上面的类,除非`/home/path/`加入了`include_path`中 
+
+在函数中导入上面的`ClassA`类,导入文件为`/home/path/call12.php`:  
+```php
+//通过global导入到函数中
+function test() {
+global $ClassA;
+import('Namespace\ClassA');
+new $ClassA;
+}
+//通过eval定义，这种方法对批量导入有效
+function test2() {
+eval(import('Namespace\ClassA'));
+new $ClassA;
+}
+//直接访问$GLOBALS全局函数
+function test2() {
+import('Namespace\ClassA');
+new $GLOBALS['ClassA'];
+}
+```
 
 批量导入类文件，`/home/path/Namespace/ClassA.php`定义了`Namespace\ClassA`,`/home/path/Namespace/ClassB.php`定义了`Namespace\ClassB`, 那么在`/home/path/call3.php`应该如下定义:    
 ```php

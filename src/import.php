@@ -110,7 +110,7 @@ function import($name, $alias = null, $origin = false) {
         if (file_exists($include_php)) {
             include_once $include_php;
             if (__invoke__($name, $alias, $origin)) {
-                return "extract(array('$alias'=>'$name'));";
+                return "\${$alias} = '{$name}';";
             }
         }
 
@@ -119,7 +119,7 @@ function import($name, $alias = null, $origin = false) {
         if (file_exists($extension_file)) {
             if (dl($extension_file)) {
                 if (__invoke__($name, $alias, $origin)) {
-                    return "extract(array('$alias'=>'$name'));";
+                    return "\${$alias} = '{$name}';";
                 }
             } else {
                 throw new RuntimeException("Can not dl $extension_file");
@@ -132,29 +132,29 @@ function import($name, $alias = null, $origin = false) {
             continue;
         }
         if (substr($file, -1) == '*') {
-            $_extract_list = array();
+            $eval_str = '';
             foreach (glob($zone, GLOB_ONLYDIR | GLOB_ERR | GLOB_NOSORT) as $path) {
                 $ext = pathinfo($path, PATHINFO_EXTENSION);
                 if ($ext == 'php') {
                     include_once $path;
                     __invoke__($name, $alias, $origin);
-                    $_extract_list[$alias] = $name;
+                    $eval_str = "\${$alias} = '{$name}';";
                 } else if ($ext == $extension) {
                     if (dl($path)) {
                         __invoke__($name, $alias, $origin);
-                        $_extract_list[$alias] = $name;
+                         $eval_str .= "\${$alias} = '{$name}';";
                     } else {
                         throw new RuntimeException("Can not dl $path");
                     }
                 }
             }
-            return "extract($_extract_list);";
+            return "$eval_str";
         }
     }
     $path = str_replace('\\', DIRECTORY_SEPARATOR, $name);
     include_once "{$name}.php";
     if (__invoke__($name, $alias, $origin)) {
-        return "extract(array('$alias'=>'$name'));";
+        return "\${$alias} = '{$name}';";
     } else {
         throw new RuntimeException("Can not import $name");
     }
